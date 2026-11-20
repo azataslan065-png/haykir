@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1b1033">
+<title>HAYKIR!</title>
+<link rel="icon" href="app-icon-192.png">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#1b1033;color:#fff8ec;font-family:"Trebuchet MS",system-ui,sans-serif;touch-action:none}
+canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
+.hidden{display:none!important}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:3}
+.chip{position:absolute;top:calc(10px + env(safe-area-inset-top));background:#1b1033b0;border:2px solid #ffffff22;border-radius:14px;padding:6px 12px;font-weight:900;font-size:18px}
+#score{left:calc(12px + env(safe-area-inset-left))}
+#lives{left:50%;transform:translateX(-50%);color:#ff5d73;letter-spacing:2px}
+#pauseBtn{right:calc(12px + env(safe-area-inset-right));pointer-events:auto;cursor:pointer}
+#meter{position:absolute;left:calc(12px + env(safe-area-inset-left));top:calc(56px + env(safe-area-inset-top));width:160px;opacity:.85;background:#1b1033c0;border:2px solid #ffffff22;border-radius:14px;padding:8px 10px;font-size:11px;font-weight:800}
+.bar{height:10px;border-radius:6px;background:#ffffff18;position:relative;overflow:hidden;margin:3px 0 6px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+#volBar{background:linear-gradient(90deg,#ffd23f,#ff6b35)}
+#whiBar{background:linear-gradient(90deg,#4ff0ff,#8a7dff)}
+.thr{position:absolute;top:-2px;bottom:-2px;width:2px;background:#fff}
+#tag{position:absolute;right:calc(12px + env(safe-area-inset-right));top:calc(56px + env(safe-area-inset-top));font-size:12px;font-weight:800;background:#1b1033c0;border-radius:10px;padding:5px 9px}
+#msg{position:absolute;left:50%;top:24%;transform:translate(-50%,-8px);background:#1b1033e0;border:2px solid #ffd23f;border-radius:16px;padding:10px 16px;font-weight:800;font-size:17px;opacity:0;transition:.3s;text-align:center;max-width:86vw}
+#msg.show{opacity:1;transform:translate(-50%,0)}
+.screen{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:16px;background:#1b1033e6}
+.card{width:min(460px,94vw);max-height:94vh;overflow:auto;text-align:center;background:#2a1a4d;border:3px solid #ffd23f66;border-radius:24px;padding:20px}
+.logo{font-size:52px;font-weight:900;margin:0;line-height:1;color:#ffd23f;text-shadow:0 5px 0 #c0392b,0 0 30px #ff6b3566;letter-spacing:2px;transform:rotate(-3deg)}
+.card p{color:#e6dcff;line-height:1.5;font-size:15px}
+.how{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0;text-align:left}
+.how div{background:#1b1033;border-radius:12px;padding:10px;font-size:13px;line-height:1.35;color:#e6dcff}
+.how b{display:block;font-size:15px;color:#fff;margin-bottom:2px}
+.btn{display:block;width:100%;margin-top:10px;padding:15px;border:0;border-radius:16px;background:linear-gradient(#ffd23f,#ff9f1c);color:#3a1a00;font:900 19px "Trebuchet MS",sans-serif;box-shadow:0 5px 0 #b35c00;cursor:pointer}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #b35c00}
+.btn.alt{background:#1b1033;color:#fff8ec;box-shadow:0 5px 0 #0c0618;border:2px solid #ffffff22;font-size:16px}
+.small{font-size:12px!important;color:#b9aee0!important}
+#calRing{width:120px;height:120px;margin:10px auto;border-radius:50%;border:8px solid #ffffff22;border-top-color:#ffd23f;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.slider{display:flex;align-items:center;gap:10px;margin-top:10px;text-align:left;font-size:14px}
+.slider input{flex:1;accent-color:#ffd23f}
+#touchHelp{position:fixed;inset:auto 0 calc(14px + env(safe-area-inset-bottom)) 0;display:flex;justify-content:space-between;padding:0 18px;z-index:2;pointer-events:none;opacity:.5;font-weight:900}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud" class="hidden">
+  <div class="chip" id="score">0 m</div>
+  <div class="chip" id="lives">♥♥♥</div>
+  <div class="chip" id="pauseBtn">❚❚</div>
+  <div id="meter">🗣️ BAĞIRMA<div class="bar"><i id="volBar"></i><span class="thr" id="volThr"></span></div>😗 ISLIK<div class="bar"><i id="whiBar"></i><span class="thr" id="whiThr"></span></div><span id="pitch">—</span></div>
+  <div id="tag"></div>
+  <div id="msg"></div>
+</div>
+<div id="touchHelp" class="hidden"><span>👆 SOL: ZIPLA</span><span>SAĞ: ATEŞ 👆</span></div>
+
+<div class="screen" id="startScr"><div class="card">
+  <h1 class="logo">HAYKIR!</h1>
+  <p>Fıstık koşuyor ve yolu gölge balonları kesiyor! Onu <b>sesinle</b> yönet.</p>
+  <div class="how">
+    <div><b>🗣️ Bağır: zıpla</b>"HEY!" diye bağır. Ne kadar yüksek bağırırsan o kadar yükseğe zıplar.</div>
+    <div><b>😗 Islık: ateş</b>Islık çaldıkça Fıstık önüne yıldız fırlatır.</div>
+    <div><b>🪨 Kayalar ve çukurlar</b>Üstlerinden zıplayarak geç.</div>
+    <div><b>🎈 Gölge balonları</b>Islıkla patlat, sakın çarpma!</div>
+  </div>
+  <button class="btn" id="micBtn">🎤 Sesimle oyna</button>
+  <button class="btn alt" id="touchBtn">👆 Dokunarak oyna</button>
+  <p class="small" id="bestTxt"></p>
+  <p class="small" id="err"></p>
+  <p class="small">Ses sadece telefonunda işlenir, kaydedilmez ve hiçbir yere gönderilmez.</p>
+</div></div>
+
+<div class="screen hidden" id="calScr"><div class="card">
+  <h1 class="logo" style="font-size:30px">SESSİZ OL…</h1>
+  <div id="calRing"></div>
+  <p id="calTxt">3 saniye boyunca sessiz kal, ortam gürültüsünü ölçüyorum.</p>
+</div></div>
+
+<div class="screen hidden" id="testScr"><div class="card">
+  <h1 class="logo" style="font-size:30px">DENE!</h1>
+  <p>Bir kez <b>bağır</b>, bir kez <b>ıslık çal</b>. Çubuklar beyaz çizgiyi geçmeli.</p>
+  <div style="text-align:left;font-weight:800;font-size:13px">🗣️ Bağırma <span id="tShout">✗</span><div class="bar"><i id="tVol" style="background:linear-gradient(90deg,#ffd23f,#ff6b35)"></i><span class="thr" id="tVolThr"></span></div>
+  😗 Islık <span id="tWhi">✗</span><div class="bar"><i id="tWhiB" style="background:linear-gradient(90deg,#4ff0ff,#8a7dff)"></i><span class="thr" id="tWhiThr"></span></div></div>
+  <div class="slider">Hassasiyet <input type="range" id="sens" min="0.5" max="2" step="0.05" value="1"></div>
+  <button class="btn" id="goBtn">Başla!</button>
+  <button class="btn alt" id="recalBtn">Yeniden ölç</button>
+</div></div>
+
+<div class="screen hidden" id="pauseScr"><div class="card">
+  <h1 class="logo" style="font-size:32px">MOLA</h1>
+  <div class="slider">Hassasiyet <input type="range" id="sens2" min="0.5" max="2" step="0.05" value="1"></div>
+  <button class="btn" id="resumeBtn">Devam</button>
+  <button class="btn alt" id="menuBtn">Ana menü</button>
+</div></div>
+
+<div class="screen hidden" id="overScr"><div class="card">
+  <h1 class="logo" style="font-size:40px">OF!</h1>
+  <p id="overTxt"></p>
+  <button class="btn" id="againBtn">Tekrar</button>
+  <button class="btn alt" id="menuBtn2">Ana menü</button>
+</div></div>
+
+<script>
+(() => {
+"use strict";
+const $=s=>document.querySelector(s);
+const cv=$("#cv"), ctx=cv.getContext("2d");
+let W=0,H=0,DPR=1;
+function resize(){ DPR=Math.min(devicePixelRatio||1,2); W=innerWidth; H=innerHeight; cv.width=W*DPR; cv.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
+addEventListener("resize",resize); resize();
+const rnd=(a,b)=>a+Math.random()*(b-a);
+
+/* ================== SES ALGILAMA ================== */
+const MIC={ctx:null,an:null,buf:null,fbuf:null,stream:null,noise:.01,vol:0,whistle:0,pitch:0,sens:1,on:false};
+let sens=1; try{ sens=+localStorage.getItem("haykir.sens")||1; }catch{} $("#sens").value=sens; $("#sens2").value=sens;
+function setSens(v){ sens=+v; try{ localStorage.setItem("haykir.sens",sens); }catch{} $("#sens").value=sens; $("#sens2").value=sens; }
+$("#sens").oninput=e=>setSens(e.target.value); $("#sens2").oninput=e=>setSens(e.target.value);
+async function startMic(){
+  MIC.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+  MIC.ctx=MIC.ctx||new (window.AudioContext||window.webkitAudioContext)(); if(MIC.ctx.state==="suspended") await MIC.ctx.resume();
+  const src=MIC.ctx.createMediaStreamSource(MIC.stream); MIC.an=MIC.ctx.createAnalyser(); MIC.an.fftSize=2048; MIC.an.smoothingTimeConstant=0.2; src.connect(MIC.an);
+  MIC.buf=new Float32Array(MIC.an.fftSize); MIC.fbuf=new Float32Array(MIC.an.frequencyBinCount); MIC.on=true;
+}
+function stopMic(){ if(MIC.stream){ MIC.stream.getTracks().forEach(t=>t.stop()); MIC.stream=null; } MIC.on=false; }
+// her karede: ses şiddeti (RMS) ve ıslık (900–4000 Hz'te dar, baskın tepe)
+function readMic(){
+  if(!MIC.on) return;
+  MIC.an.getFloatTimeDomainData(MIC.buf); let s=0; for(let i=0;i<MIC.buf.length;i++) s+=MIC.buf[i]*MIC.buf[i];
+  const rms=Math.sqrt(s/MIC.buf.length); MIC.vol=rms;
+  MIC.an.getFloatFrequencyData(MIC.fbuf); const hz=MIC.ctx.sampleRate/MIC.an.fftSize;
+  const lo=Math.floor(900/hz), hi=Math.floor(4000/hz); let pk=-1e9, pi=lo, sum=0, n=0;
+  for(let i=lo;i<=hi;i++){ const v=MIC.fbuf[i]; if(v>pk){ pk=v; pi=i; } sum+=v; n++; }
+  const mean=sum/n;
+  // tepenin çevresi dışındaki ortalama: ıslık tek ince çizgi, bağırma geniş bant
+  let side=0, sn=0; for(let i=lo;i<=hi;i++){ if(Math.abs(i-pi)>4){ side+=MIC.fbuf[i]; sn++; } } side/=Math.max(1,sn);
+  const prom=pk-side;                 // dB cinsinden belirginlik
+  // alçak frekans enerjisi (bağırma 100–900 Hz'te güçlüdür)
+  let low=-1e9; for(let i=Math.floor(120/hz);i<lo;i++) low=Math.max(low,MIC.fbuf[i]);
+  const tonal = prom>22 && pk>-62 && pk>low-6;
+  MIC.whistle = tonal ? Math.min(1,(prom-22)/18+.35) : 0;
+  MIC.pitch = tonal ? Math.round(pi*hz) : 0;
+}
+const shoutThr=()=>Math.max(.03,MIC.noise*5)/sens;
+const shoutLevel=()=>MIC.vol/shoutThr();           // 1 = eşik
+async function calibrate(){
+  $("#calScr").classList.remove("hidden"); const t0=performance.now(); const vals=[];
+  await new Promise(res=>{ const tick=()=>{ readMic(); vals.push(MIC.vol); const left=3-(performance.now()-t0)/1000; $("#calTxt").textContent=`Sessiz kal… ${Math.max(0,left).toFixed(1)} sn`; if(left>0) requestAnimationFrame(tick); else res(); }; tick(); });
+  vals.sort((a,b)=>a-b); MIC.noise=Math.max(.004,vals[Math.floor(vals.length*.9)]||.01);
+  $("#calScr").classList.add("hidden"); openTest();
+}
+let testRaf=0, okS=false, okW=false;
+function openTest(){ okS=okW=false; $("#tShout").textContent="✗"; $("#tWhi").textContent="✗"; $("#testScr").classList.remove("hidden");
+  $("#tVolThr").style.left="50%"; $("#tWhiThr").style.left="50%";
+  const tick=()=>{ readMic(); const v=Math.min(1,shoutLevel()/2); $("#tVol").style.width=v*100+"%"; const w=MIC.whistle; $("#tWhiB").style.width=(w>0?50+w*50:0)+"%";
+    if(shoutLevel()>=1&&!MIC.whistle&&!okS){ okS=true; $("#tShout").textContent="✓"; }
+    if(MIC.whistle>0&&!okW){ okW=true; $("#tWhi").textContent="✓ ("+MIC.pitch+" Hz)"; }
+    if(!$("#testScr").classList.contains("hidden")) testRaf=requestAnimationFrame(tick); }; tick(); }
+$("#recalBtn").onclick=()=>{ $("#testScr").classList.add("hidden"); cancelAnimationFrame(testRaf); calibrate(); };
+$("#goBtn").onclick=()=>{ $("#testScr").classList.add("hidden"); cancelAnimationFrame(testRaf); startGame("mic"); };
+$("#micBtn").onclick=async()=>{ $("#err").textContent=""; audioOut();
+  try{ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) throw new Error("Bu cihaz mikrofona erişim vermiyor."); await startMic(); $("#startScr").classList.add("hidden"); calibrate(); }
+  catch(e){ $("#err").textContent="Mikrofon açılamadı: "+(e.message||e)+" — dokunarak oynayabilirsin."; } };
+$("#touchBtn").onclick=()=>{ audioOut(); stopMic(); $("#startScr").classList.add("hidden"); startGame("touch"); };
+
+/* ================== SES EFEKTLERİ ================== */
+let OUT=null; function audioOut(){ if(!OUT){ try{ OUT=new (window.AudioContext||window.webkitAudioContext)(); }catch{} } if(OUT&&OUT.state==="suspended") OUT.resume(); }
+function bp(f,d,type="square",v=.05,sl=0,dl=0){ if(!OUT) return; const t=OUT.currentTime+dl,o=OUT.createOscillator(),g=OUT.createGain(); o.type=type; o.frequency.setValueAtTime(f,t); if(sl) o.frequency.exponentialRampToValueAtTime(Math.max(30,f+sl),t+d); g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(.0001,t+d); o.connect(g).connect(OUT.destination); o.start(t); o.stop(t+d); }
+// mikrofonun kendi seslerimizi duymaması için efektler kısa ve kısık
+const SFX={jump:()=>bp(300,.12,"triangle",.05,300),shot:()=>bp(900,.05,"square",.02,600),pop:()=>bp(200,.15,"square",.05,-120),coin:()=>{bp(990,.05,"square",.03);bp(1480,.08,"square",.025,0,.05);},hurt:()=>bp(110,.35,"sawtooth",.06,-50)};
+
+/* ================== OYUN ================== */
+const GRAV=2600;
+let mode="menu", ctrl="touch", running=false, paused=false;
+let P, obs, foes, shots, coins, parts, groundSegs, speed, dist, score, lives, inv, spawnX, tm, fireCD, shoutLock, lastShout;
+let best=0; try{ best=+localStorage.getItem("haykir.best")||0; }catch{} if(best) $("#bestTxt").textContent="Rekorun: "+best+" puan";
+const GY=()=>H*.78;     // zemin üstü
+function reset(){
+  P={x:W*.22,y:GY(),vy:0,ground:true,squash:0,blink:0,mouth:0};
+  obs=[]; foes=[]; shots=[]; coins=[]; parts=[]; groundSegs=[{x0:-100,x1:W*1.2}];
+  speed=Math.max(260,W*.38); dist=0; score=0; lives=3; inv=0; spawnX=W*1.2; tm=0; fireCD=0; shoutLock=0; lastShout=0;
+}
+function startGame(c){ ctrl=c; reset(); running=true; paused=false; mode="play";
+  ["#startScr","#overScr","#pauseScr"].forEach(s=>$(s).classList.add("hidden")); $("#hud").classList.remove("hidden");
+  $("#meter").classList.toggle("hidden",ctrl!=="mic"); $("#touchHelp").classList.toggle("hidden",ctrl!=="touch");
+  $("#tag").textContent=ctrl==="mic"?"🎤 Sesle oynuyorsun":"👆 Dokunmatik";
+  say(ctrl==="mic"?"Bağır: zıpla! Islık: ateş!":"Sol: zıpla · Sağ: ateş",2600); hud();
+  try{ if(document.documentElement.requestFullscreen&&!document.fullscreenElement&&matchMedia("(pointer:coarse)").matches) document.documentElement.requestFullscreen().catch(()=>{}); }catch{}
+}
+let msgT=null; function say(t,ms=1600){ const m=$("#msg"); m.textContent=t; m.classList.add("show"); clearTimeout(msgT); msgT=setTimeout(()=>m.classList.remove("show"),ms); }
+function hud(){ $("#score").textContent=score+" puan · "+Math.floor(dist/40)+" m"; $("#lives").textContent="♥".repeat(Math.max(0,lives))+"♡".repeat(Math.max(0,3-lives)); }
+// dokunmatik
+const touchIn={jump:0,fire:false};
+addEventListener("pointerdown",e=>{ if(mode!=="play"||ctrl!=="touch"||e.target.closest(".card")||e.target.id==="pauseBtn") return; if(e.clientX<W/2) touchIn.jump=1; else touchIn.fire=true; });
+addEventListener("pointerup",e=>{ if(e.clientX>=W/2) touchIn.fire=false; });
+addEventListener("keydown",e=>{ if(mode!=="play") return; if(e.code==="Space"||e.code==="ArrowUp") touchIn.jump=1; if(e.code==="KeyX"||e.code==="ArrowRight") touchIn.fire=true; if(e.code==="Escape") togglePause(); });
+addEventListener("keyup",e=>{ if(e.code==="KeyX"||e.code==="ArrowRight") touchIn.fire=false; });
+function togglePause(){ if(mode!=="play"&&mode!=="pause") return; paused=!paused; mode=paused?"pause":"play"; $("#pauseScr").classList.toggle("hidden",!paused); }
+$("#pauseBtn").addEventListener("click",togglePause); $("#resumeBtn").onclick=togglePause;
+function toMenu(){ running=false; mode="menu"; stopMic(); ["#pauseScr","#overScr","#hud","#touchHelp"].forEach(s=>$(s).classList.add("hidden")); $("#startScr").classList.remove("hidden"); paused=false; }
+$("#menuBtn").onclick=toMenu; $("#menuBtn2").onclick=toMenu; $("#againBtn").onclick=()=>{ if(ctrl==="mic"&&!MIC.on){ toMenu(); return; } startGame(ctrl); };
+document.addEventListener("visibilitychange",()=>{ if(document.hidden&&mode==="play") togglePause(); });
+window.haykirGeri=()=>{ if(mode==="play"||mode==="pause"){ togglePause(); return true; } if(mode==="over"){ toMenu(); return true; } return false; };
+
+function jump(power){ if(!P.ground) return; P.vy=-(Math.sqrt(2*GRAV*H*.16)*power); P.ground=false; P.squash=-.25; SFX.jump(); for(let i=0;i<6;i++) parts.push({x:P.x,y:P.y,vx:rnd(-80,40),vy:rnd(-120,-20),t:.4,c:"#e8d4a8",r:3}); }
+function fire(){ shots.push({x:P.x+20,y:P.y-30,vx:speed*1.3+500,t:1.2}); SFX.shot(); P.mouth=.15; }
+function groundAt(x){ for(const s of groundSegs) if(x>=s.x0&&x<=s.x1) return GY(); return null; }
+
+function spawn(){
+  const diff=Math.min(1,dist/9000);
+  const r=Math.random();
+  if(r<.33){ const h=rnd(28,46+diff*24); obs.push({x:spawnX,w:rnd(34,52),h}); spawnX+=rnd(320,520)-diff*80; }
+  else if(r<.55){ // çukur
+    const gap=rnd(90,140+diff*60); const last=groundSegs[groundSegs.length-1]; last.x1=spawnX; groundSegs.push({x0:spawnX+gap,x1:spawnX+gap+4000}); spawnX+=gap+rnd(300,460); }
+  else if(r<.85){ const y=GY()-rnd(40,170); foes.push({x:spawnX+rnd(0,120),y,y0:y,ph:rnd(0,6),hp:1+(diff>.5&&Math.random()<.4?1:0),r:22}); spawnX+=rnd(280,420)-diff*60; }
+  else { for(let i=0;i<5;i++) coins.push({x:spawnX+i*36,y:GY()-60-Math.sin(i/4*Math.PI)*70,got:false}); spawnX+=rnd(320,420); }
+  // son zemin parçası her zaman ileride
+  const last=groundSegs[groundSegs.length-1]; if(last.x1<spawnX+600) last.x1=spawnX+4000;
+}
+function hit(){ if(inv>0) return; lives--; inv=1.6; SFX.hurt(); hud(); if(navigator.vibrate) try{ navigator.vibrate(100); }catch{}
+  for(let i=0;i<16;i++) parts.push({x:P.x,y:P.y-25,vx:rnd(-200,200),vy:rnd(-300,0),t:.6,c:"#ff9f1c",r:4});
+  if(lives<=0) gameOver(); }
+function gameOver(){ running=false; mode="over"; const sc=score+Math.floor(dist/40); if(sc>best){ best=sc; try{ localStorage.setItem("haykir.best",best); }catch{} }
+  $("#overTxt").innerHTML=`Puan: <b>${sc}</b> (${Math.floor(dist/40)} m + ${score} balon/altın)<br>Rekor: ${best}`; $("#bestTxt").textContent="Rekorun: "+best+" puan";
+  setTimeout(()=>{ $("#overScr").classList.remove("hidden"); $("#hud").classList.add("hidden"); },500); }
+
+function update(dt){
+  tm+=dt; inv-=dt; fireCD-=dt; shoutLock-=dt; P.mouth-=dt;
+  speed+=dt*6; const dx=speed*dt; dist+=dx;
+  // girdi
+  let wantJump=0, wantFire=false;
+  if(ctrl==="mic"){ readMic(); const lv=shoutLevel();
+    if(lv>=1&&!MIC.whistle&&shoutLock<=0){ wantJump=Math.min(1.35,.72+(lv-1)*.28); shoutLock=.35; }
+    if(lv<.6) shoutLock=Math.min(shoutLock,0);
+    wantFire=MIC.whistle>0;
+    $("#volBar").style.width=Math.min(100,lv*50)+"%"; $("#volThr").style.left="50%"; $("#whiBar").style.width=(MIC.whistle?50+MIC.whistle*50:0)+"%"; $("#whiThr").style.left="50%";
+    $("#pitch").textContent=MIC.whistle?"ıslık "+MIC.pitch+" Hz":lv>=1?"BAĞIRIYOR!":"…"; P.mouth=Math.max(P.mouth,lv>=.8?.05:0);
+  } else { if(touchIn.jump){ wantJump=1.05; touchIn.jump=0; } wantFire=touchIn.fire; }
+  if(wantJump) jump(wantJump);
+  if(wantFire&&fireCD<=0){ fire(); fireCD=.22; }
+  // fizik
+  P.vy+=GRAV*dt; const ny=P.y+P.vy*dt; const g=groundAt(P.x+dist);
+  if(g!==null&&ny>=g&&P.y<=g+4){ if(!P.ground){ P.squash=.3; } P.y=g; P.vy=0; P.ground=true; } else { P.y=ny; P.ground=false; }
+  if(P.y>H+80){ hit(); if(lives>0){ // güvenli zemine geri koy
+      P.y=GY()-200; P.vy=0; let x=P.x+dist; if(groundAt(x)===null){ const seg=groundSegs.find(s=>s.x0>x); if(seg) dist+=seg.x0-x+40; } } }
+  P.squash*=Math.pow(.001,dt);
+  while(spawnX<dist+W*1.6) spawn();
+  // engeller
+  obs.forEach(o=>{ const sx=o.x-dist; if(!o.hit&&sx<P.x+18&&sx+o.w>P.x-18&&P.y>GY()-o.h+6){ o.hit=true; hit(); } });
+  foes.forEach(f=>{ f.ph+=dt*3; f.y=f.y0+Math.sin(f.ph)*14; f.x-=dt*40; const sx=f.x-dist;
+    if(!f.dead&&Math.hypot(sx-P.x,f.y-(P.y-26))<f.r+20){ f.dead=true; hit(); } });
+  coins.forEach(c=>{ const sx=c.x-dist; if(!c.got&&Math.hypot(sx-P.x,c.y-(P.y-26))<30){ c.got=true; score+=5; SFX.coin(); hud(); } });
+  shots.forEach(s=>{ s.x+=s.vx*dt-dx; s.t-=dt; foes.forEach(f=>{ if(!f.dead&&s.t>0&&Math.hypot(f.x-dist-s.x,f.y-s.y)<f.r+10){ s.t=0; f.hp--; if(f.hp<=0){ f.dead=true; score+=10; SFX.pop(); hud(); for(let i=0;i<14;i++) parts.push({x:f.x-dist,y:f.y,vx:rnd(-220,220),vy:rnd(-220,120),t:.5,c:"#b388ff",r:4}); } } }); });
+  shots=shots.filter(s=>s.t>0&&s.x<W+40);
+  obs=obs.filter(o=>o.x-dist>-120); foes=foes.filter(f=>!f.dead&&f.x-dist>-120); coins=coins.filter(c=>!c.got&&c.x-dist>-60);
+  groundSegs=groundSegs.filter(s=>s.x1-dist>-200);
+  parts.forEach(q=>{ q.t-=dt; q.x+=q.vx*dt; q.y+=q.vy*dt; q.vy+=900*dt; }); parts=parts.filter(q=>q.t>0);
+  if(Math.floor(tm*4)%2===0) hud();
+}
+
+/* ================== ÇİZİM ================== */
+function draw(){
+  const off=(running||mode==="pause"||mode==="over")?dist:performance.now()*.15;
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#2b1a5e"); g.addColorStop(.55,"#ff7e5f"); g.addColorStop(1,"#feb47b"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // güneş
+  ctx.fillStyle="#ffe29a"; ctx.beginPath(); ctx.arc(W*.75,H*.45,H*.12,0,7); ctx.fill();
+  // tepeler (paralaks)
+  [["#7a3b69",.15,.62,.2],["#4e2a5a",.35,.7,.14]].forEach(([c,par,base,amp])=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.moveTo(0,H); for(let x=0;x<=W+20;x+=20){ const wx=x+off*par; ctx.lineTo(x,H*base-Math.sin(wx*.004)*H*amp*.5-Math.sin(wx*.011)*H*amp*.25); } ctx.lineTo(W,H); ctx.fill(); });
+  // zemin
+  const gy=GY();
+  if(groundSegs) groundSegs.forEach(s=>{ const x0=s.x0-off, x1=s.x1-off; if(x1<0||x0>W) return; ctx.fillStyle="#3b2a1a"; ctx.fillRect(x0,gy,x1-x0,H-gy); ctx.fillStyle="#6ab04c"; ctx.fillRect(x0,gy,x1-x0,10); ctx.fillStyle="#4a8a34"; for(let x=Math.ceil((s.x0)/28)*28;x<s.x1;x+=28){ const sx=x-off; if(sx>-10&&sx<W) ctx.fillRect(sx,gy+10,14,4); } });
+  else { ctx.fillStyle="#3b2a1a"; ctx.fillRect(0,gy,W,H-gy); ctx.fillStyle="#6ab04c"; ctx.fillRect(0,gy,W,10); }
+  if(!P) return;
+  // engeller
+  obs.forEach(o=>{ const x=o.x-dist; ctx.fillStyle="#6d6875"; ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x+o.w*.15,gy-o.h); ctx.lineTo(x+o.w*.8,gy-o.h*.9); ctx.lineTo(x+o.w,gy); ctx.fill(); ctx.fillStyle="#8d8796"; ctx.beginPath(); ctx.moveTo(x+o.w*.2,gy-o.h*.95); ctx.lineTo(x+o.w*.5,gy-o.h*.92); ctx.lineTo(x+o.w*.35,gy-o.h*.6); ctx.fill(); });
+  // altınlar
+  coins.forEach(c=>{ const x=c.x-dist, w=Math.abs(Math.cos(tm*5+c.x))*9+2; ctx.fillStyle="#ffd23f"; ctx.beginPath(); ctx.ellipse(x,c.y,w,11,0,0,7); ctx.fill(); ctx.fillStyle="#fff3b0"; ctx.fillRect(x-w*.3,c.y-6,Math.max(1,w*.25),5); });
+  // gölge balonları
+  foes.forEach(f=>{ const x=f.x-dist; ctx.strokeStyle="#2b1a5e"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x,f.y+f.r); ctx.quadraticCurveTo(x+6,f.y+f.r+14,x-2,f.y+f.r+26); ctx.stroke();
+    ctx.fillStyle=f.hp>1?"#5b2a86":"#7b4bbf"; ctx.beginPath(); ctx.ellipse(x,f.y,f.r,f.r*1.12,0,0,7); ctx.fill();
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.ellipse(x-8,f.y-4,6,8,0,0,7); ctx.ellipse(x+8,f.y-4,6,8,0,0,7); ctx.fill();
+    ctx.fillStyle="#1b1033"; ctx.beginPath(); ctx.arc(x-9,f.y-2,3,0,7); ctx.arc(x+7,f.y-2,3,0,7); ctx.fill();
+    ctx.strokeStyle="#1b1033"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x-14,f.y-14); ctx.lineTo(x-3,f.y-10); ctx.moveTo(x+14,f.y-14); ctx.lineTo(x+3,f.y-10); ctx.stroke(); });
+  // yıldız mermiler
+  shots.forEach(s=>{ ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(tm*14); ctx.fillStyle="#4ff0ff"; ctx.beginPath(); for(let i=0;i<10;i++){ const r=i%2?4:10, a=i/10*Math.PI*2; ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r); } ctx.fill(); ctx.restore(); });
+  // FISTIK
+  if(!(inv>0&&Math.floor(tm*14)%2)){ const sq=P.squash, sx=1+sq, sy=1-sq, x=P.x, y=P.y;
+    ctx.save(); ctx.translate(x,y); ctx.scale(sx,sy);
+    ctx.fillStyle="#0003"; ctx.beginPath(); ctx.ellipse(0,0,22,5,0,0,7); ctx.fill();
+    // ayaklar
+    const run=P.ground?Math.sin(tm*22):0.6; ctx.fillStyle="#c0392b"; ctx.fillRect(-14+run*5,-8,10,8); ctx.fillRect(4-run*5,-8,10,8);
+    // gövde
+    ctx.fillStyle="#ff9f1c"; ctx.beginPath(); ctx.ellipse(0,-28,24,24,0,0,7); ctx.fill();
+    ctx.fillStyle="#ffbf5a"; ctx.beginPath(); ctx.ellipse(-6,-36,10,8,-.4,0,7); ctx.fill();
+    // göz
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.ellipse(8,-34,8,9,0,0,7); ctx.fill(); ctx.fillStyle="#1b1033"; ctx.beginPath(); ctx.arc(10,-33,4,0,7); ctx.fill();
+    // ağız: bağırınca kocaman açılır
+    const open=Math.max(0,P.mouth)>0||(!P.ground&&P.vy<0); ctx.fillStyle="#5a1020";
+    if(open){ ctx.beginPath(); ctx.ellipse(14,-20,7,8,0,0,7); ctx.fill(); ctx.fillStyle="#ff6b81"; ctx.beginPath(); ctx.ellipse(14,-16,4,3,0,0,7); ctx.fill(); }
+    else { ctx.fillRect(9,-21,10,3); }
+    // tüy perçemi
+    ctx.strokeStyle="#ff9f1c"; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(-2,-50); ctx.quadraticCurveTo(-10,-64,4,-62); ctx.stroke();
+    ctx.restore(); }
+  parts.forEach(q=>{ ctx.globalAlpha=Math.max(0,q.t*2); ctx.fillStyle=q.c; ctx.beginPath(); ctx.arc(q.x,q.y,q.r,0,7); ctx.fill(); }); ctx.globalAlpha=1;
+  // ses dalgası efekti (bağırınca)
+  if(ctrl==="mic"&&MIC.on&&mode==="play"){ const lv=Math.min(2,shoutLevel()); if(lv>.5){ ctx.strokeStyle=`rgba(255,255,255,${Math.min(.6,(lv-.5)*.5)})`; ctx.lineWidth=3; for(let i=1;i<=3;i++){ ctx.beginPath(); ctx.arc(P.x+18,P.y-22,10+i*10*lv,-.6,.6); ctx.stroke(); } } }
+}
+let last=performance.now();
+function loop(now){ requestAnimationFrame(loop); const dt=Math.min(.033,(now-last)/1000); last=now;
+  if(mode==="play"&&running) update(dt); draw(); }
+window.__haykir={get P(){return P},get mode(){return mode},MIC,get score(){return score},get lives(){return lives},touchIn,get dist(){return dist}};
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
