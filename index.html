@@ -66,6 +66,8 @@ canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
   </div>
   <button class="btn" id="micBtn">🎤 Sesimle oyna</button>
   <button class="btn alt" id="touchBtn">👆 Dokunarak oyna</button>
+  <button class="btn alt" id="lvBtn">📋 Seviyeler (100)</button>
+  <button class="btn alt" id="shopBtn">🛒 Mağaza</button>
   <p class="small" id="bestTxt"></p>
   <p class="small" id="err"></p>
   <p class="small">Ses sadece telefonunda işlenir, kaydedilmez ve hiçbir yere gönderilmez.</p>
@@ -95,12 +97,108 @@ canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
 </div></div>
 
 <div class="screen hidden" id="overScr"><div class="card">
-  <h1 class="logo" style="font-size:40px">OF!</h1>
+  <h1 class="logo" style="font-size:40px"><span id="overTitle">OF!</span></h1>
   <p id="overTxt"></p>
-  <button class="btn" id="againBtn">Tekrar</button>
+  <button class="btn" id="nextBtn">Sonraki seviye ▶</button>
+  <button class="btn alt" id="againBtn">Tekrar</button>
+  <button class="btn alt" id="lvBtn2">📋 Seviyeler</button>
   <button class="btn alt" id="menuBtn2">Ana menü</button>
 </div></div>
 
+<!--META--><script>
+/* ===== ORTAK MODÜL: seviye seçici + oyun parası mağazası (AZAT oyunları) ===== */
+(function(){
+"use strict";
+window.createMeta=function(cfg){
+  const KEY="meta."+cfg.key, N=cfg.levels||100, T=Object.assign({bg:"#1a1020",card:"#2a1a38",ink:"#fff4e2",acc:"#ffb627",acc2:"#4fd1b5",dim:"#8a7f9c",font:"system-ui,sans-serif",coin:"🪙"},cfg.theme||{});
+  let S={coins:0,max:1,stars:{},own:{}};
+  try{ const j=JSON.parse(localStorage.getItem(KEY)); if(j&&typeof j==="object") S=Object.assign(S,j); }catch(e){}
+  if(cfg.test) S.max=N;
+  const save=()=>{ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} };
+  if(!document.getElementById("mt-css")){
+    const st=document.createElement("style"); st.id="mt-css";
+    st.textContent=`
+.mt-ov{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:14px;background:#000000b0;font-family:var(--mt-font);color:var(--mt-ink);-webkit-user-select:none;user-select:none;touch-action:pan-y}
+.mt-ov.mt-hide{display:none}
+.mt-card{width:min(460px,96vw);max-height:92vh;display:flex;flex-direction:column;background:var(--mt-card);border:2px solid var(--mt-acc);border-radius:22px;box-shadow:0 20px 60px #000a;overflow:hidden}
+.mt-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid #ffffff22}
+.mt-head h2{margin:0;font-size:20px;color:var(--mt-acc);letter-spacing:1px}
+.mt-coin{background:#0006;border:1px solid #ffffff2a;border-radius:14px;padding:6px 12px;font-weight:800;font-size:16px;white-space:nowrap}
+.mt-body{overflow:auto;padding:12px 14px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.mt-grp{margin:12px 2px 6px;font-size:12px;font-weight:800;letter-spacing:2px;color:var(--mt-acc2);text-transform:uppercase}
+.mt-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.mt-lv{position:relative;aspect-ratio:1;border-radius:12px;border:2px solid #ffffff26;background:#0004;color:var(--mt-ink);font:800 17px var(--mt-font);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;padding:0}
+.mt-lv small{font-size:10px;letter-spacing:1px;color:var(--mt-acc);height:11px;line-height:11px}
+.mt-lv.mt-ok{background:#ffffff14;border-color:var(--mt-acc2)}
+.mt-lv.mt-cur{border-color:var(--mt-acc);box-shadow:0 0 0 2px var(--mt-acc) inset}
+.mt-lv.mt-lock{color:var(--mt-dim);cursor:default;opacity:.55}
+.mt-item{display:flex;align-items:center;gap:10px;background:#0004;border:1px solid #ffffff1f;border-radius:14px;padding:10px 12px;margin-bottom:8px}
+.mt-item .mt-t{flex:1;font-size:13px;line-height:1.35;color:#e9dff5}
+.mt-item .mt-t b{display:block;font-size:15px;color:var(--mt-ink)}
+.mt-item .mt-t i{font-style:normal;color:var(--mt-acc2);font-size:12px}
+.mt-buy{min-width:78px;border:0;border-radius:12px;padding:10px 8px;font:800 14px var(--mt-font);background:linear-gradient(var(--mt-acc),var(--mt-acc));color:#201000;cursor:pointer}
+.mt-buy:disabled{background:#ffffff1f;color:var(--mt-dim);cursor:default}
+.mt-foot{padding:12px 16px;border-top:1px solid #ffffff22;display:flex;gap:8px}
+.mt-foot button{flex:1;border:0;border-radius:14px;padding:13px;font:800 16px var(--mt-font);background:#ffffff1c;color:var(--mt-ink);cursor:pointer}
+.mt-foot button.mt-p{background:var(--mt-acc);color:#201000}
+`;
+    document.head.appendChild(st);
+  }
+  const ov=document.createElement("div"); ov.className="mt-ov mt-hide";
+  ov.style.setProperty("--mt-bg",T.bg); ov.style.setProperty("--mt-card",T.card); ov.style.setProperty("--mt-ink",T.ink); ov.style.setProperty("--mt-acc",T.acc); ov.style.setProperty("--mt-acc2",T.acc2); ov.style.setProperty("--mt-dim",T.dim); ov.style.setProperty("--mt-font",T.font);
+  ov.innerHTML=`<div class="mt-card"><div class="mt-head"><h2></h2><div class="mt-coin"></div></div><div class="mt-body"></div><div class="mt-foot"></div></div>`;
+  document.body.appendChild(ov);
+  const $h2=ov.querySelector("h2"), $coin=ov.querySelector(".mt-coin"), $body=ov.querySelector(".mt-body"), $foot=ov.querySelector(".mt-foot");
+  let view="", onPick=null, onClose=null;
+  const api={
+    get coins(){ return S.coins; }, get max(){ return S.max; }, N,
+    add(n){ S.coins=Math.max(0,S.coins+Math.round(n)); save(); },
+    stars(l){ return S.stars[l]||0; },
+    done(level,stars){ S.stars[level]=Math.max(S.stars[level]||0,stars||1); if(level>=S.max&&level<N) S.max=level+1; save(); },
+    lv(id){ return S.own[id]||0; }, has(id){ return (S.own[id]||0)>0; },
+    price(it){ return Math.round(it.fiyat*Math.pow(it.kat||1.7,S.own[it.id]||0)); },
+    buy(id){ const it=cfg.shop.find(x=>x.id===id); if(!it) return false; const l=S.own[id]||0, mx=it.max||1; if(l>=mx) return false; const p=api.price(it); if(S.coins<p) return false; S.coins-=p; S.own[id]=l+1; save(); if(api.onBuy) api.onBuy(id); return true; },
+    isOpen(){ return !ov.classList.contains("mt-hide"); },
+    close(){ if(!api.isOpen()) return; ov.classList.add("mt-hide"); view=""; const f=onClose; onClose=null; if(f) f(); },
+    unlockAll(){ S.max=N; save(); },
+    openLevels(pick,cur,closed){ onPick=pick; onClose=closed||null; view="lv"; render(cur); ov.classList.remove("mt-hide"); const c=ov.querySelector(".mt-cur"); if(c) c.scrollIntoView({block:"center"}); },
+    openShop(closed){ onClose=closed||null; view="shop"; render(); ov.classList.remove("mt-hide"); }
+  };
+  function render(cur){
+    $coin.textContent=T.coin+" "+S.coins; $body.innerHTML=""; $foot.innerHTML="";
+    if(view==="lv"){
+      $h2.textContent=(cfg.title||"SEVİYELER");
+      const per=cfg.group||10;
+      for(let g=0;g*per<N;g++){
+        const h=document.createElement("div"); h.className="mt-grp"; h.textContent=(cfg.groupName?cfg.groupName(g):("Bölüm "+(g+1))); $body.appendChild(h);
+        const grid=document.createElement("div"); grid.className="mt-grid"; $body.appendChild(grid);
+        for(let i=g*per+1;i<=Math.min(N,(g+1)*per);i++){
+          const b=document.createElement("button"); b.className="mt-lv"; const open=i<=S.max, st=S.stars[i]||0;
+          if(!open) b.classList.add("mt-lock"); else if(st) b.classList.add("mt-ok"); if(i===cur) b.classList.add("mt-cur");
+          b.innerHTML=(open?i:"🔒")+"<small>"+(st?"★".repeat(st):"")+"</small>";
+          if(open) b.onclick=()=>{ const f=onPick; ov.classList.add("mt-hide"); view=""; onClose=null; if(f) f(i); };
+          grid.appendChild(b);
+        }
+      }
+      const s=document.createElement("button"); s.textContent="🛒 Mağaza"; s.onclick=()=>{ const oc=onClose, op=onPick; api.openShop(); onClose=()=>{ api.openLevels(op,cur,oc); }; };
+      const c=document.createElement("button"); c.className="mt-p"; c.textContent="Kapat"; c.onclick=api.close; $foot.append(s,c);
+    } else {
+      $h2.textContent=(cfg.shopTitle||"MAĞAZA");
+      cfg.shop.forEach(it=>{
+        const d=document.createElement("div"); d.className="mt-item"; const l=S.own[it.id]||0, mx=it.max||1, full=l>=mx, p=api.price(it);
+        const t=document.createElement("div"); t.className="mt-t"; t.innerHTML=`<b>${it.ad}</b>${it.ac}<br><i>${mx>1?("Seviye "+l+"/"+mx):(full?"Alındı":"Tek seferlik")}</i>`;
+        const b=document.createElement("button"); b.className="mt-buy"; b.textContent=full?"✓":(T.coin+" "+p); b.disabled=full||S.coins<p;
+        b.onclick=()=>{ if(api.buy(it.id)) render(); };
+        d.append(t,b); $body.appendChild(d);
+      });
+      const c=document.createElement("button"); c.className="mt-p"; c.textContent="Geri"; c.onclick=api.close; $foot.append(c);
+    }
+  }
+  return api;
+};
+})();
+
+</script><!--/META-->
 <script>
 (() => {
 "use strict";
@@ -173,22 +271,23 @@ const SFX={jump:()=>bp(300,.12,"triangle",.05,300),shot:()=>bp(900,.05,"square",
 const GRAV=2600;
 let mode="menu", ctrl="touch", running=false, paused=false;
 let P, obs, foes, shots, coins, parts, groundSegs, speed, dist, score, lives, inv, spawnX, tm, fireCD, shoutLock, lastShout;
+let LEVEL=1, selLevel=1, maxLives=5, gold=0, lostLives=0, targetD=8000, boss=null, bossShots=[], shield=0, baseSpeed=300, fireRate=.22, PICK=30, jumpMul=1, bodyCol=["#ff9f1c","#ffbf5a"];
 let best=0; try{ best=+localStorage.getItem("haykir.best")||0; }catch{} if(best) $("#bestTxt").textContent="Rekorun: "+best+" puan";
 const GY=()=>H*.78;     // zemin üstü
 function reset(){
   P={x:W*.22,y:GY(),vy:0,ground:true,squash:0,blink:0,mouth:0};
   obs=[]; foes=[]; shots=[]; coins=[]; parts=[]; groundSegs=[{x0:-100,x1:W*1.2}];
-  speed=Math.max(260,W*.38); dist=0; score=0; lives=3; inv=0; spawnX=W*1.2; tm=0; fireCD=0; shoutLock=0; lastShout=0;
+  applyUpgrades(); baseSpeed=Math.max(250,W*.33)*(1+.0035*LEVEL)*(1-.04*META.lv("slow")); speed=baseSpeed; dist=0; score=0; lives=maxLives; gold=0; lostLives=0; shield=META.lv("shield"); boss=null; bossShots=[]; targetD=(200+8*LEVEL)*40; inv=0; spawnX=W*1.2; tm=0; fireCD=0; shoutLock=0; lastShout=0;
 }
-function startGame(c){ ctrl=c; reset(); running=true; paused=false; mode="play";
+function startGame(c){ ctrl=c; LEVEL=selLevel; reset(); running=true; paused=false; mode="play";
   ["#startScr","#overScr","#pauseScr"].forEach(s=>$(s).classList.add("hidden")); $("#hud").classList.remove("hidden");
   $("#meter").classList.toggle("hidden",ctrl!=="mic"); $("#touchHelp").classList.toggle("hidden",ctrl!=="touch");
   $("#tag").textContent=ctrl==="mic"?"🎤 Sesle oynuyorsun":"👆 Dokunmatik";
-  say(ctrl==="mic"?"Bağır: zıpla! Islık: ateş!":"Sol: zıpla · Sağ: ateş",2600); hud();
+  say("Seviye "+LEVEL+": "+Math.round(targetD/40)+" m koş!"+(LEVEL%10===0?" BOSS seni bekliyor!":(LEVEL===1?(ctrl==="mic"?" Bağır: zıpla, ıslık: ateş!":" Sol: zıpla · Sağ: ateş"):"")),3000); hud();
   try{ if(document.documentElement.requestFullscreen&&!document.fullscreenElement&&matchMedia("(pointer:coarse)").matches) document.documentElement.requestFullscreen().catch(()=>{}); }catch{}
 }
 let msgT=null; function say(t,ms=1600){ const m=$("#msg"); m.textContent=t; m.classList.add("show"); clearTimeout(msgT); msgT=setTimeout(()=>m.classList.remove("show"),ms); }
-function hud(){ $("#score").textContent=score+" puan · "+Math.floor(dist/40)+" m"; $("#lives").textContent="♥".repeat(Math.max(0,lives))+"♡".repeat(Math.max(0,3-lives)); }
+function hud(){ $("#score").textContent="Sv "+LEVEL+" · "+Math.min(Math.floor(dist/40),Math.round(targetD/40))+"/"+Math.round(targetD/40)+" m · 🪙"+gold; $("#lives").textContent="♥".repeat(Math.max(0,lives))+"♡".repeat(Math.max(0,maxLives-lives))+(shield>0?" 🛡"+shield:""); }
 // dokunmatik
 const touchIn={jump:0,fire:false};
 addEventListener("pointerdown",e=>{ if(mode!=="play"||ctrl!=="touch"||e.target.closest(".card")||e.target.id==="pauseBtn") return; if(e.clientX<W/2) touchIn.jump=1; else touchIn.fire=true; });
@@ -197,36 +296,47 @@ addEventListener("keydown",e=>{ if(mode!=="play") return; if(e.code==="Space"||e
 addEventListener("keyup",e=>{ if(e.code==="KeyX"||e.code==="ArrowRight") touchIn.fire=false; });
 function togglePause(){ if(mode!=="play"&&mode!=="pause") return; paused=!paused; mode=paused?"pause":"play"; $("#pauseScr").classList.toggle("hidden",!paused); }
 $("#pauseBtn").addEventListener("click",togglePause); $("#resumeBtn").onclick=togglePause;
-function toMenu(){ running=false; mode="menu"; stopMic(); ["#pauseScr","#overScr","#hud","#touchHelp"].forEach(s=>$(s).classList.add("hidden")); $("#startScr").classList.remove("hidden"); paused=false; }
-$("#menuBtn").onclick=toMenu; $("#menuBtn2").onclick=toMenu; $("#againBtn").onclick=()=>{ if(ctrl==="mic"&&!MIC.on){ toMenu(); return; } startGame(ctrl); };
+function toMenu(){ running=false; mode="menu"; stopMic(); refreshMenu(); ["#pauseScr","#overScr","#hud","#touchHelp"].forEach(s=>$(s).classList.add("hidden")); $("#startScr").classList.remove("hidden"); paused=false; }
+$("#menuBtn").onclick=toMenu; $("#menuBtn2").onclick=toMenu; $("#againBtn").onclick=()=>{ if(ctrl==="mic"&&!MIC.on){ toMenu(); return; } selLevel=LEVEL; startGame(ctrl); };
+$("#nextBtn").onclick=()=>{ if(ctrl==="mic"&&!MIC.on){ toMenu(); return; } selLevel=Math.min(META.N,LEVEL+1); startGame(ctrl); };
+$("#lvBtn2").onclick=()=>META.openLevels(l=>{ if(ctrl==="mic"&&!MIC.on){ selLevel=l; toMenu(); return; } selLevel=l; startGame(ctrl); },LEVEL);
+$("#lvBtn").onclick=()=>META.openLevels(l=>{ selLevel=l; refreshMenu(); },selLevel,refreshMenu);
+$("#shopBtn").onclick=()=>META.openShop(refreshMenu);
+function refreshMenu(){ $("#micBtn").textContent="🎤 Sesimle oyna · Seviye "+selLevel; $("#touchBtn").textContent="👆 Dokunarak oyna · Seviye "+selLevel; $("#bestTxt").textContent="İlerleme: seviye "+META.max+"/100 · 🪙 "+META.coins; }
 document.addEventListener("visibilitychange",()=>{ if(document.hidden&&mode==="play") togglePause(); });
-window.haykirGeri=()=>{ if(mode==="play"||mode==="pause"){ togglePause(); return true; } if(mode==="over"){ toMenu(); return true; } return false; };
+window.haykirGeri=()=>{ if(META.isOpen()){ META.close(); return true; } if(mode==="play"||mode==="pause"){ togglePause(); return true; } if(mode==="over"){ toMenu(); return true; } return false; };
 
-function jump(power){ if(!P.ground) return; P.vy=-(Math.sqrt(2*GRAV*H*.16)*power); P.ground=false; P.squash=-.25; SFX.jump(); for(let i=0;i<6;i++) parts.push({x:P.x,y:P.y,vx:rnd(-80,40),vy:rnd(-120,-20),t:.4,c:"#e8d4a8",r:3}); }
+function jump(power){ if(!P.ground) return; P.vy=-(Math.sqrt(2*GRAV*H*.16)*power*jumpMul); P.ground=false; P.squash=-.25; SFX.jump(); for(let i=0;i<6;i++) parts.push({x:P.x,y:P.y,vx:rnd(-80,40),vy:rnd(-120,-20),t:.4,c:"#e8d4a8",r:3}); }
 function fire(){ shots.push({x:P.x+20,y:P.y-30,vx:speed*1.3+500,t:1.2}); SFX.shot(); P.mouth=.15; }
 function groundAt(x){ for(const s of groundSegs) if(x>=s.x0&&x<=s.x1) return GY(); return null; }
 
 function spawn(){
-  const diff=Math.min(1,dist/9000);
-  const r=Math.random();
-  if(r<.33){ const h=rnd(28,46+diff*24); obs.push({x:spawnX,w:rnd(34,52),h}); spawnX+=rnd(320,520)-diff*80; }
-  else if(r<.55){ // çukur
-    const gap=rnd(90,140+diff*60); const last=groundSegs[groundSegs.length-1]; last.x1=spawnX; groundSegs.push({x0:spawnX+gap,x1:spawnX+gap+4000}); spawnX+=gap+rnd(300,460); }
-  else if(r<.85){ const y=GY()-rnd(40,170); foes.push({x:spawnX+rnd(0,120),y,y0:y,ph:rnd(0,6),hp:1+(diff>.5&&Math.random()<.4?1:0),r:22}); spawnX+=rnd(280,420)-diff*60; }
+  const diff=Math.min(1,LEVEL/100), r=Math.random();
+  if(spawnX>targetD-W*.3){ spawnX+=W; }
+  else if(r<.30){ const h=rnd(26,38+diff*10); obs.push({x:spawnX,w:rnd(32,46),h}); spawnX+=rnd(360,560)-diff*60; }
+  else if(r<.48){ // çukur
+    const gap=rnd(70,95+diff*35); const last=groundSegs[groundSegs.length-1]; last.x1=spawnX; groundSegs.push({x0:spawnX+gap,x1:spawnX+gap+4000}); spawnX+=gap+rnd(340,480); }
+  else if(r<.76){ const y=GY()-rnd(40,170); foes.push({x:spawnX+rnd(0,120),y,y0:y,ph:rnd(0,6),hp:1+(diff>.5&&Math.random()<.3?1:0),r:22}); spawnX+=rnd(320,460)-diff*50; }
   else { for(let i=0;i<5;i++) coins.push({x:spawnX+i*36,y:GY()-60-Math.sin(i/4*Math.PI)*70,got:false}); spawnX+=rnd(320,420); }
   // son zemin parçası her zaman ileride
   const last=groundSegs[groundSegs.length-1]; if(last.x1<spawnX+600) last.x1=spawnX+4000;
 }
-function hit(){ if(inv>0) return; lives--; inv=1.6; SFX.hurt(); hud(); if(navigator.vibrate) try{ navigator.vibrate(100); }catch{}
+function hit(){ if(inv>0) return; if(shield>0){ shield--; inv=1.2; say("🛡 Kalkan seni kurtardı!",1200); hud(); return; } lives--; lostLives++; inv=1.6; SFX.hurt(); hud(); if(navigator.vibrate) try{ navigator.vibrate(100); }catch{}
   for(let i=0;i<16;i++) parts.push({x:P.x,y:P.y-25,vx:rnd(-200,200),vy:rnd(-300,0),t:.6,c:"#ff9f1c",r:4});
   if(lives<=0) gameOver(); }
-function gameOver(){ running=false; mode="over"; const sc=score+Math.floor(dist/40); if(sc>best){ best=sc; try{ localStorage.setItem("haykir.best",best); }catch{} }
-  $("#overTxt").innerHTML=`Puan: <b>${sc}</b> (${Math.floor(dist/40)} m + ${score} balon/altın)<br>Rekor: ${best}`; $("#bestTxt").textContent="Rekorun: "+best+" puan";
+function gameOver(){ if(mode==="over") return; running=false; mode="over"; const cons=Math.floor(gold/2); META.add(cons);
+  $("#overTitle").textContent="OF!"; $("#nextBtn").style.display="none";
+  $("#overTxt").innerHTML=`Seviye ${LEVEL}: <b>${Math.floor(dist/40)}/${Math.round(targetD/40)} m</b><br>Teselli altını: <b>🪙 ${cons}</b> · Toplam 🪙 ${META.coins}<br><small>Mağazadan can, kalkan ve güç alabilirsin.</small>`; refreshMenu();
   setTimeout(()=>{ $("#overScr").classList.remove("hidden"); $("#hud").classList.add("hidden"); },500); }
+function levelWin(){ if(mode==="over") return; running=false; mode="over"; const stars=lostLives===0?3:lostLives<=2?2:1, bonus=15+LEVEL*2+(stars===3?10:0), gain=gold+bonus;
+  META.add(gain); META.done(LEVEL,stars); selLevel=Math.min(META.N,LEVEL+1); SFX.coin(); setTimeout(()=>SFX.coin(),150); refreshMenu();
+  $("#overTitle").textContent=LEVEL%10===0?"BOSS YENİLDİ!":"BİTİŞ!"; $("#nextBtn").style.display=LEVEL>=META.N?"none":"block";
+  $("#overTxt").innerHTML="<span style='font-size:28px;letter-spacing:5px;color:#ffd23f'>"+"★".repeat(stars)+"☆".repeat(3-stars)+"</span><br>Seviye "+LEVEL+" · "+Math.round(targetD/40)+" m<br>Kazanılan: <b>🪙 "+gain+"</b> <small>(altın "+gold+" + bonus "+bonus+")</small><br>Toplam altının: 🪙 "+META.coins;
+  setTimeout(()=>{ $("#overScr").classList.remove("hidden"); $("#hud").classList.add("hidden"); },700); }
 
 function update(dt){
   tm+=dt; inv-=dt; fireCD-=dt; shoutLock-=dt; P.mouth-=dt;
-  speed+=dt*6; const dx=speed*dt; dist+=dx;
+  speed=Math.min(baseSpeed*1.25,speed+dt*2); const dx=speed*dt; dist+=dx;
   // girdi
   let wantJump=0, wantFire=false;
   if(ctrl==="mic"){ readMic(); const lv=shoutLevel();
@@ -237,7 +347,7 @@ function update(dt){
     $("#pitch").textContent=MIC.whistle?"ıslık "+MIC.pitch+" Hz":lv>=1?"BAĞIRIYOR!":"…"; P.mouth=Math.max(P.mouth,lv>=.8?.05:0);
   } else { if(touchIn.jump){ wantJump=1.05; touchIn.jump=0; } wantFire=touchIn.fire; }
   if(wantJump) jump(wantJump);
-  if(wantFire&&fireCD<=0){ fire(); fireCD=.22; }
+  if(wantFire&&fireCD<=0){ fire(); fireCD=fireRate; }
   // fizik
   P.vy+=GRAV*dt; const ny=P.y+P.vy*dt; const g=groundAt(P.x+dist);
   if(g!==null&&ny>=g&&P.y<=g+4){ if(!P.ground){ P.squash=.3; } P.y=g; P.vy=0; P.ground=true; } else { P.y=ny; P.ground=false; }
@@ -245,12 +355,20 @@ function update(dt){
       P.y=GY()-200; P.vy=0; let x=P.x+dist; if(groundAt(x)===null){ const seg=groundSegs.find(s=>s.x0>x); if(seg) dist+=seg.x0-x+40; } } }
   P.squash*=Math.pow(.001,dt);
   while(spawnX<dist+W*1.6) spawn();
+  // bitiş çizgisi / boss
+  if(LEVEL%10===0){
+    if(!boss&&dist>=targetD-W*1.2){ boss={x:dist+W*1.1,y:GY()-120,hp:6+Math.floor(LEVEL/10)*2,max:6+Math.floor(LEVEL/10)*2,ph:0,cd:2.2,dead:false,r:62}; say("BOSS: Gölge Balon Kralı! Islıkla vur, topunu dodge et!",2600); }
+    if(boss&&!boss.dead){ boss.ph+=dt*1.6; boss.x=dist+W*(.80+Math.sin(boss.ph*.7)*.05); boss.y=GY()-115+Math.sin(boss.ph)*40; boss.cd-=dt;
+      if(boss.cd<=0){ boss.cd=2.4-Math.min(.8,LEVEL*.008); bossShots.push({x:boss.x-dist-30,y:boss.y,vx:-(baseSpeed*.9+120),vy:rnd(-40,120)}); }
+      shots.forEach(sh=>{ if(sh.t>0&&Math.hypot(boss.x-dist-sh.x,boss.y-sh.y)<boss.r+10){ sh.t=0; boss.hp--; SFX.pop(); for(let i=0;i<6;i++) parts.push({x:boss.x-dist-30,y:boss.y,vx:rnd(-150,150),vy:rnd(-150,100),t:.4,c:"#b388ff",r:4}); if(boss.hp<=0){ boss.dead=true; gold+=20; for(let i=0;i<30;i++) parts.push({x:boss.x-dist,y:boss.y,vx:rnd(-300,300),vy:rnd(-300,150),t:.8,c:"#b388ff",r:5}); levelWin(); } } }); }
+    bossShots.forEach(b=>{ b.x+=b.vx*dt; b.y+=b.vy*dt; b.vy+=300*dt; if(b.y>GY()-14){ b.y=GY()-14; b.vy=-Math.abs(b.vy)*.4; } if(Math.hypot(b.x-P.x,b.y-(P.y-26))<26){ b.dead=true; hit(); } }); bossShots=bossShots.filter(b=>!b.dead&&b.x>-60);
+  } else if(P.x+dist>=targetD){ levelWin(); return; }
   // engeller
-  obs.forEach(o=>{ const sx=o.x-dist; if(!o.hit&&sx<P.x+18&&sx+o.w>P.x-18&&P.y>GY()-o.h+6){ o.hit=true; hit(); } });
+  obs.forEach(o=>{ const sx=o.x-dist; if(!o.hit&&sx<P.x+14&&sx+o.w>P.x-14&&P.y>GY()-o.h+10){ o.hit=true; hit(); } });
   foes.forEach(f=>{ f.ph+=dt*3; f.y=f.y0+Math.sin(f.ph)*14; f.x-=dt*40; const sx=f.x-dist;
-    if(!f.dead&&Math.hypot(sx-P.x,f.y-(P.y-26))<f.r+20){ f.dead=true; hit(); } });
-  coins.forEach(c=>{ const sx=c.x-dist; if(!c.got&&Math.hypot(sx-P.x,c.y-(P.y-26))<30){ c.got=true; score+=5; SFX.coin(); hud(); } });
-  shots.forEach(s=>{ s.x+=s.vx*dt-dx; s.t-=dt; foes.forEach(f=>{ if(!f.dead&&s.t>0&&Math.hypot(f.x-dist-s.x,f.y-s.y)<f.r+10){ s.t=0; f.hp--; if(f.hp<=0){ f.dead=true; score+=10; SFX.pop(); hud(); for(let i=0;i<14;i++) parts.push({x:f.x-dist,y:f.y,vx:rnd(-220,220),vy:rnd(-220,120),t:.5,c:"#b388ff",r:4}); } } }); });
+    if(!f.dead&&Math.hypot(sx-P.x,f.y-(P.y-26))<f.r+16){ f.dead=true; hit(); } });
+  coins.forEach(c=>{ const sx=c.x-dist; if(!c.got&&Math.hypot(sx-P.x,c.y-(P.y-26))<PICK){ c.got=true; score+=5; gold++; SFX.coin(); hud(); } });
+  shots.forEach(s=>{ s.x+=s.vx*dt-dx; s.t-=dt; foes.forEach(f=>{ if(!f.dead&&s.t>0&&Math.hypot(f.x-dist-s.x,f.y-s.y)<f.r+10){ s.t=0; f.hp--; if(f.hp<=0){ f.dead=true; score+=10; gold++; SFX.pop(); hud(); for(let i=0;i<14;i++) parts.push({x:f.x-dist,y:f.y,vx:rnd(-220,220),vy:rnd(-220,120),t:.5,c:"#b388ff",r:4}); } } }); });
   shots=shots.filter(s=>s.t>0&&s.x<W+40);
   obs=obs.filter(o=>o.x-dist>-120); foes=foes.filter(f=>!f.dead&&f.x-dist>-120); coins=coins.filter(c=>!c.got&&c.x-dist>-60);
   groundSegs=groundSegs.filter(s=>s.x1-dist>-200);
@@ -258,18 +376,47 @@ function update(dt){
   if(Math.floor(tm*4)%2===0) hud();
 }
 
+
+/* ================== SEVİYELER, TEMALAR, MAĞAZA ================== */
+const THEMES=[
+ {ad:"Gün Batımı",sky:["#2b1a5e","#ff7e5f","#feb47b"],sun:"#ffe29a",hills:["#7a3b69","#4e2a5a"],dirt:"#3b2a1a",grass:"#6ab04c",grass2:"#4a8a34"},
+ {ad:"Gece Ormanı",sky:["#050a24","#1a2a5e","#2f4a8a"],sun:"#e6ecff",hills:["#0f3a2a","#0a2a20"],dirt:"#1a1a12",grass:"#2f8a4a",grass2:"#1f6a3a"},
+ {ad:"Çöl",sky:["#ff9a3c","#ffd27a","#fff0c0"],sun:"#fff6c8",hills:["#d89a4a","#b8793a"],dirt:"#8a5a2a",grass:"#e8c070",grass2:"#c89a50"},
+ {ad:"Kar Diyarı",sky:["#5a8ac8","#b8d8f0","#f0f8ff"],sun:"#ffffff",hills:["#c8dff0","#9ab8d8"],dirt:"#6a7a9a",grass:"#f4fbff",grass2:"#cfe4f4"},
+ {ad:"Okyanus Kıyısı",sky:["#0a4a8a","#3ab0d8","#a8e8f0"],sun:"#fff2a8",hills:["#1a7a9a","#0f5a7a"],dirt:"#c8a86a",grass:"#e8d49a",grass2:"#c8b070"},
+ {ad:"Volkan",sky:["#1a0505","#8a1a0a","#ff6a1a"],sun:"#ffb04a",hills:["#3a0f0a","#240805"],dirt:"#2a1410",grass:"#5a2a1a",grass2:"#8a3a1a"},
+ {ad:"Uzay",sky:["#02020f","#150a3a","#2a1a6a"],sun:"#f4e6ff",hills:["#2a1a5a","#1a0f3a"],dirt:"#1a1230",grass:"#5a4a9a",grass2:"#7a6aba"},
+ {ad:"Şeker Diyarı",sky:["#ff8ac8","#ffc0e8","#fff0fa"],sun:"#fff6b0",hills:["#ff9ad0","#e07ab8"],dirt:"#8a4a6a",grass:"#7af0c0",grass2:"#4ad0a0"},
+ {ad:"Bulut Şehri",sky:["#4a7ae0","#9ac0ff","#e8f2ff"],sun:"#fffbe0",hills:["#c8d8f8","#a8bce8"],dirt:"#8a9acb",grass:"#ffffff",grass2:"#dde6ff"},
+ {ad:"Gökkuşağı",sky:["#7a2ae0","#ff5ac8","#ffe05a"],sun:"#ffffff",hills:["#2ac8a8","#2a8ad8"],dirt:"#5a2a8a",grass:"#ffd23f",grass2:"#ff8a3f"}];
+const META=createMeta({key:"haykir",levels:100,title:"SEVİYELER",group:10,groupName:g=>"Diyar "+(g+1)+" · "+THEMES[g].ad,coin:"🪙",
+  theme:{bg:"#1b1033",card:"#2a1a4d",ink:"#fff8ec",acc:"#ffd23f",acc2:"#4ff0ff",dim:"#9a8cc8",font:'"Trebuchet MS",system-ui,sans-serif'},
+  shop:[
+   {id:"heart",ad:"Ekstra can",ac:"Her seviyeye +1 canla başla.",fiyat:50,max:5,kat:1.6},
+   {id:"shield",ad:"Kalkan",ac:"Her seviyenin başında hasarı yutan bir kalkanın olur.",fiyat:70,max:3,kat:1.8},
+   {id:"jump",ad:"Güçlü zıplama",ac:"Zıplaman %6 daha yüksek.",fiyat:45,max:4,kat:1.7},
+   {id:"rate",ad:"Hızlı yıldız",ac:"Yıldız atışı %10 daha sık.",fiyat:55,max:3,kat:1.8},
+   {id:"magnet",ad:"Altın mıknatısı",ac:"Altınları daha uzaktan toplarsın.",fiyat:40,max:3,kat:1.6},
+   {id:"slow",ad:"Sakin adımlar",ac:"Fıstık %4 daha yavaş koşar, daha kolay oynanır.",fiyat:80,max:3,kat:1.8},
+   {id:"skin2",ad:"Mavi Fıstık",ac:"Fıstık maviye döner.",fiyat:60,max:1},
+   {id:"skin3",ad:"Yeşil Fıstık",ac:"Fıstık yeşile döner.",fiyat:60,max:1}]});
+META.onBuy=()=>applyUpgrades();
+function applyUpgrades(){ maxLives=5+META.lv("heart"); jumpMul=1+.06*META.lv("jump"); fireRate=.22*(1-.1*META.lv("rate")); PICK=30+META.lv("magnet")*14;
+  bodyCol=META.has("skin2")?["#4aa8ff","#9fd0ff"]:META.has("skin3")?["#5ccf6a","#a8f0b0"]:["#ff9f1c","#ffbf5a"]; }
+
 /* ================== ÇİZİM ================== */
 function draw(){
+  const TH=THEMES[(((mode==="menu")?selLevel:LEVEL)-1)/10|0]||THEMES[0];
   const off=(running||mode==="pause"||mode==="over")?dist:performance.now()*.15;
-  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#2b1a5e"); g.addColorStop(.55,"#ff7e5f"); g.addColorStop(1,"#feb47b"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,TH.sky[0]); g.addColorStop(.55,TH.sky[1]); g.addColorStop(1,TH.sky[2]); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   // güneş
-  ctx.fillStyle="#ffe29a"; ctx.beginPath(); ctx.arc(W*.75,H*.45,H*.12,0,7); ctx.fill();
+  ctx.fillStyle=TH.sun; ctx.beginPath(); ctx.arc(W*.75,H*.45,H*.12,0,7); ctx.fill();
   // tepeler (paralaks)
-  [["#7a3b69",.15,.62,.2],["#4e2a5a",.35,.7,.14]].forEach(([c,par,base,amp])=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.moveTo(0,H); for(let x=0;x<=W+20;x+=20){ const wx=x+off*par; ctx.lineTo(x,H*base-Math.sin(wx*.004)*H*amp*.5-Math.sin(wx*.011)*H*amp*.25); } ctx.lineTo(W,H); ctx.fill(); });
+  [[TH.hills[0],.15,.62,.2],[TH.hills[1],.35,.7,.14]].forEach(([c,par,base,amp])=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.moveTo(0,H); for(let x=0;x<=W+20;x+=20){ const wx=x+off*par; ctx.lineTo(x,H*base-Math.sin(wx*.004)*H*amp*.5-Math.sin(wx*.011)*H*amp*.25); } ctx.lineTo(W,H); ctx.fill(); });
   // zemin
   const gy=GY();
-  if(groundSegs) groundSegs.forEach(s=>{ const x0=s.x0-off, x1=s.x1-off; if(x1<0||x0>W) return; ctx.fillStyle="#3b2a1a"; ctx.fillRect(x0,gy,x1-x0,H-gy); ctx.fillStyle="#6ab04c"; ctx.fillRect(x0,gy,x1-x0,10); ctx.fillStyle="#4a8a34"; for(let x=Math.ceil((s.x0)/28)*28;x<s.x1;x+=28){ const sx=x-off; if(sx>-10&&sx<W) ctx.fillRect(sx,gy+10,14,4); } });
-  else { ctx.fillStyle="#3b2a1a"; ctx.fillRect(0,gy,W,H-gy); ctx.fillStyle="#6ab04c"; ctx.fillRect(0,gy,W,10); }
+  if(groundSegs) groundSegs.forEach(s=>{ const x0=s.x0-off, x1=s.x1-off; if(x1<0||x0>W) return; ctx.fillStyle=TH.dirt; ctx.fillRect(x0,gy,x1-x0,H-gy); ctx.fillStyle=TH.grass; ctx.fillRect(x0,gy,x1-x0,10); ctx.fillStyle=TH.grass2; for(let x=Math.ceil((s.x0)/28)*28;x<s.x1;x+=28){ const sx=x-off; if(sx>-10&&sx<W) ctx.fillRect(sx,gy+10,14,4); } });
+  else { ctx.fillStyle=TH.dirt; ctx.fillRect(0,gy,W,H-gy); ctx.fillStyle=TH.grass; ctx.fillRect(0,gy,W,10); }
   if(!P) return;
   // engeller
   obs.forEach(o=>{ const x=o.x-dist; ctx.fillStyle="#6d6875"; ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x+o.w*.15,gy-o.h); ctx.lineTo(x+o.w*.8,gy-o.h*.9); ctx.lineTo(x+o.w,gy); ctx.fill(); ctx.fillStyle="#8d8796"; ctx.beginPath(); ctx.moveTo(x+o.w*.2,gy-o.h*.95); ctx.lineTo(x+o.w*.5,gy-o.h*.92); ctx.lineTo(x+o.w*.35,gy-o.h*.6); ctx.fill(); });
@@ -281,6 +428,14 @@ function draw(){
     ctx.fillStyle="#fff"; ctx.beginPath(); ctx.ellipse(x-8,f.y-4,6,8,0,0,7); ctx.ellipse(x+8,f.y-4,6,8,0,0,7); ctx.fill();
     ctx.fillStyle="#1b1033"; ctx.beginPath(); ctx.arc(x-9,f.y-2,3,0,7); ctx.arc(x+7,f.y-2,3,0,7); ctx.fill();
     ctx.strokeStyle="#1b1033"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x-14,f.y-14); ctx.lineTo(x-3,f.y-10); ctx.moveTo(x+14,f.y-14); ctx.lineTo(x+3,f.y-10); ctx.stroke(); });
+  // bitiş çizgisi
+  if(running&&LEVEL%10!==0){ const fx=targetD-dist; if(fx>-80&&fx<W+80){ ctx.fillStyle="#fff"; ctx.fillRect(fx-4,gy-150,8,150); ctx.fillRect(fx+116,gy-150,8,150); for(let i=0;i<10;i++) for(let j=0;j<2;j++){ ctx.fillStyle=(i+j)%2?"#111":"#fff"; ctx.fillRect(fx+i*12,gy-150+j*12,12,12); } ctx.fillStyle="#ffd23f"; ctx.font="bold 18px sans-serif"; ctx.textAlign="center"; ctx.fillText("BİTİŞ",fx+62,gy-160); ctx.textAlign="left"; } }
+  // boss
+  if(boss&&!boss.dead){ const bx=boss.x-dist, by=boss.y, r=boss.r; ctx.strokeStyle="#1b1033"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(bx,by+r); ctx.quadraticCurveTo(bx+10,by+r+22,bx-4,by+r+44); ctx.stroke();
+    ctx.fillStyle="#3a1a66"; ctx.beginPath(); ctx.ellipse(bx,by,r,r*1.1,0,0,7); ctx.fill(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.ellipse(bx-20,by-8,13,17,0,0,7); ctx.ellipse(bx+20,by-8,13,17,0,0,7); ctx.fill();
+    ctx.fillStyle="#ff3a5a"; ctx.beginPath(); ctx.arc(bx-22,by-4,6,0,7); ctx.arc(bx+18,by-4,6,0,7); ctx.fill(); ctx.fillStyle="#ffd23f"; ctx.beginPath(); ctx.moveTo(bx-30,by-r*.95); ctx.lineTo(bx-20,by-r*1.25); ctx.lineTo(bx-8,by-r*1.0); ctx.lineTo(bx,by-r*1.3); ctx.lineTo(bx+8,by-r*1.0); ctx.lineTo(bx+20,by-r*1.25); ctx.lineTo(bx+30,by-r*.95); ctx.fill();
+    ctx.fillStyle="#0008"; ctx.fillRect(W*.3,70,W*.4,10); ctx.fillStyle="#b388ff"; ctx.fillRect(W*.3+1,71,(W*.4-2)*Math.max(0,boss.hp)/boss.max,8); }
+  bossShots.forEach(b=>{ ctx.fillStyle="#1b1033"; ctx.beginPath(); ctx.arc(b.x,b.y,14,0,7); ctx.fill(); ctx.fillStyle="#b388ff"; ctx.beginPath(); ctx.arc(b.x-3,b.y-3,5,0,7); ctx.fill(); });
   // yıldız mermiler
   shots.forEach(s=>{ ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(tm*14); ctx.fillStyle="#4ff0ff"; ctx.beginPath(); for(let i=0;i<10;i++){ const r=i%2?4:10, a=i/10*Math.PI*2; ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r); } ctx.fill(); ctx.restore(); });
   // FISTIK
@@ -290,8 +445,8 @@ function draw(){
     // ayaklar
     const run=P.ground?Math.sin(tm*22):0.6; ctx.fillStyle="#c0392b"; ctx.fillRect(-14+run*5,-8,10,8); ctx.fillRect(4-run*5,-8,10,8);
     // gövde
-    ctx.fillStyle="#ff9f1c"; ctx.beginPath(); ctx.ellipse(0,-28,24,24,0,0,7); ctx.fill();
-    ctx.fillStyle="#ffbf5a"; ctx.beginPath(); ctx.ellipse(-6,-36,10,8,-.4,0,7); ctx.fill();
+    ctx.fillStyle=bodyCol[0]; ctx.beginPath(); ctx.ellipse(0,-28,24,24,0,0,7); ctx.fill();
+    ctx.fillStyle=bodyCol[1]; ctx.beginPath(); ctx.ellipse(-6,-36,10,8,-.4,0,7); ctx.fill();
     // göz
     ctx.fillStyle="#fff"; ctx.beginPath(); ctx.ellipse(8,-34,8,9,0,0,7); ctx.fill(); ctx.fillStyle="#1b1033"; ctx.beginPath(); ctx.arc(10,-33,4,0,7); ctx.fill();
     // ağız: bağırınca kocaman açılır
@@ -299,7 +454,7 @@ function draw(){
     if(open){ ctx.beginPath(); ctx.ellipse(14,-20,7,8,0,0,7); ctx.fill(); ctx.fillStyle="#ff6b81"; ctx.beginPath(); ctx.ellipse(14,-16,4,3,0,0,7); ctx.fill(); }
     else { ctx.fillRect(9,-21,10,3); }
     // tüy perçemi
-    ctx.strokeStyle="#ff9f1c"; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(-2,-50); ctx.quadraticCurveTo(-10,-64,4,-62); ctx.stroke();
+    ctx.strokeStyle=bodyCol[0]; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(-2,-50); ctx.quadraticCurveTo(-10,-64,4,-62); ctx.stroke();
     ctx.restore(); }
   parts.forEach(q=>{ ctx.globalAlpha=Math.max(0,q.t*2); ctx.fillStyle=q.c; ctx.beginPath(); ctx.arc(q.x,q.y,q.r,0,7); ctx.fill(); }); ctx.globalAlpha=1;
   // ses dalgası efekti (bağırınca)
@@ -308,7 +463,8 @@ function draw(){
 let last=performance.now();
 function loop(now){ requestAnimationFrame(loop); const dt=Math.min(.033,(now-last)/1000); last=now;
   if(mode==="play"&&running) update(dt); draw(); }
-window.__haykir={get P(){return P},get mode(){return mode},MIC,get score(){return score},get lives(){return lives},touchIn,get dist(){return dist}};
+window.__haykir={META,get LEVEL(){return LEVEL},get obs(){return obs},get foes(){return foes},get targetD(){return targetD},get gold(){return gold},get boss(){return boss},get lostLives(){return lostLives},groundAt,setLevel:l=>{selLevel=l;},start:c=>startGame(c),get P(){return P},get mode(){return mode},MIC,get score(){return score},get lives(){return lives},touchIn,get dist(){return dist}};
+applyUpgrades(); refreshMenu();
 requestAnimationFrame(loop);
 })();
 </script>
